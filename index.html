@@ -18,8 +18,12 @@
     const latestImg = document.getElementById('latest');
 
     async function startCamera() {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-      video.srcObject = stream;
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+      }
     }
 
     async function uploadFrame() {
@@ -27,20 +31,25 @@
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
 
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
-      const formData = new FormData();
-      formData.append('image', blob, 'frame.jpg');
+      canvas.toBlob(async (blob) => {
+        if (!blob) return;
+        const formData = new FormData();
+        formData.append('image', blob, 'frame.jpg');
 
-      fetch('/upload', { method: 'POST', body: formData })
-        .catch(console.error);
+        try {
+          await fetch('/upload', { method: 'POST', body: formData });
+        } catch (err) {
+          console.error('Upload failed:', err);
+        }
+      }, 'image/jpeg');
     }
 
     startBtn.onclick = () => {
       startCamera();
-      setInterval(uploadFrame, 10000); // every 10 seconds
+      setInterval(uploadFrame, 10000); // upload every 10 seconds
     };
 
-    // Auto-refresh latest image every 10s on any device
+    // Auto-refresh latest image every 10s
     setInterval(() => {
       latestImg.src = 'latest.jpg?time=' + new Date().getTime();
     }, 10000);
