@@ -1,45 +1,49 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>iPhone Live Stream (JPEG every 10s)</title>
+  <title>iPhone Live Stream</title>
 </head>
 <body>
   <h1>Live Stream</h1>
   <video id="camera" autoplay playsinline width="320"></video>
   <canvas id="canvas" style="display:none;"></canvas>
-  <img id="latest" src="" width="320" />
+  <img id="latest" src="latest.jpg" width="320" />
 
   <button id="startBtn">Start Streaming</button>
 
   <script>
     const video = document.getElementById('camera');
     const canvas = document.getElementById('canvas');
-    const latestImg = document.getElementById('latest');
     const startBtn = document.getElementById('startBtn');
+    const latestImg = document.getElementById('latest');
 
     async function startCamera() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-        video.srcObject = stream;
-      } catch (err) {
-        alert('Could not access camera: ' + err);
-      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      video.srcObject = stream;
     }
 
-    function captureFrame() {
+    async function uploadFrame() {
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
       canvas.getContext('2d').drawImage(video, 0, 0);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.8); // Base64 JPEG
-      latestImg.src = dataUrl; // show latest frame
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg'));
+      const formData = new FormData();
+      formData.append('image', blob, 'frame.jpg');
+
+      fetch('/upload', { method: 'POST', body: formData })
+        .catch(console.error);
     }
 
     startBtn.onclick = () => {
       startCamera();
-      setInterval(captureFrame, 10000); // every 10 seconds
+      setInterval(uploadFrame, 10000); // every 10 seconds
     };
+
+    // Auto-refresh latest image every 10s on any device
+    setInterval(() => {
+      latestImg.src = 'latest.jpg?time=' + new Date().getTime();
+    }, 10000);
   </script>
 </body>
 </html>
-
-
